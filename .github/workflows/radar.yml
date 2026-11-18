@@ -1,0 +1,66 @@
+# DY 이슈 레이더 — 공개 저장소 실행기(공개 저장소의 Actions 는 무료 무제한).
+# 이 저장소에는 이 파일만 있다. 코드·기록은 비공개 저장소(KungPPu/tistory-blog)에서 가져와 돌리고, 기록도 그쪽에 저장한다.
+# 실행 로그에는 키워드를 남기지 않는다(출력은 파일로만, 공개 로그엔 성공/실패만).
+# 실행: Cloudflare Worker Cron(10분마다)이 workflow_dispatch 로 부른다.
+name: radar
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "시험 알림"
+        type: boolean
+        default: false
+
+concurrency:
+  group: radar
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: KungPPu/tistory-blog
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run radar (출력은 공개 로그에 남기지 않음)
+        working-directory: src/issue_finder
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          NAVER_APIHUB_ID: ${{ secrets.NAVER_APIHUB_ID }}
+          NAVER_APIHUB_SECRET: ${{ secrets.NAVER_APIHUB_SECRET }}
+          NAVER_AD_API_KEY: ${{ secrets.NAVER_AD_API_KEY }}
+          NAVER_AD_SECRET: ${{ secrets.NAVER_AD_SECRET }}
+          NAVER_AD_CUSTOMER_ID: ${{ secrets.NAVER_AD_CUSTOMER_ID }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          NAVER_USAGE_FILE: ${{ github.workspace }}/src/issue_finder/radar_data/naver_api_usage.json
+          NAVER_SEARCH_DAILY_CAP: "8000"
+          NAVER_SEARCH_MONTHLY_CAP: "240000"
+        run: |
+          if python radar.py ${{ inputs.test && '--test' || '' }} > "$RUNNER_TEMP/radar.log" 2>&1; then
+            echo "radar ok"
+          else
+            echo "radar failed (exit $?) — 자세한 내용은 비공개 저장소 radar_data/last_error.txt"
+            tail -c 4000 "$RUNNER_TEMP/radar.log" > radar_data/last_error.txt
+          fi
+
+      - name: Save state to private repo
+        working-directory: src
+        run: |
+          git config user.name "issue-radar"
+          git config user.email "noreply@github.com"
+          git add issue_finder/radar_data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "radar: state $(date -u +%Y-%m-%dT%H:%MZ)" -q
+          for n in 1 2 3 4; do git pull --rebase -q && git push -q && exit 0; sleep 7; done
+          exit 1
