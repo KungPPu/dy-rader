@@ -50,9 +50,9 @@ jobs:
           if python radar.py ${{ inputs.test && '--test' || '' }} > "$RUNNER_TEMP/radar.log" 2>&1; then
             echo "radar ok"
           else
-            echo "radar failed (exit $?) — 자세한 내용은 비공개 저장소 radar_data/last_error.txt"
-            tail -c 4000 "$RUNNER_TEMP/radar.log" > radar_data/last_error.txt
+            echo "radar failed — 자세한 내용은 비공개 저장소 radar_data/last_run.txt"
           fi
+          tail -c 6000 "$RUNNER_TEMP/radar.log" > radar_data/last_run.txt   # 마지막 실행 출력(비공개 저장소에만)
 
       - name: Save state to private repo
         working-directory: src
