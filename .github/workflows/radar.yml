@@ -66,6 +66,7 @@ jobs:
               echo "$b" >> "$RUNNER_TEMP/changed.txt"      # 같은 이름으로 다시 만든 사진(대표 썸네일 등) → CDN 캐시 비우기
             fi
             mkdir -p pub/img && cp "$f" "pub/img/$b" && n=$((n+1))
+            grep -qx "$b" "$RUNNER_TEMP/changed.txt" || echo "$b" >> "$RUNNER_TEMP/changed.txt"   # 새 사진도 캐시 비우기(같은 이름을 지웠다 다시 올린 경우)
           done
           echo "new/changed photos: $n"
           [ "$n" -eq 0 ] && exit 0
