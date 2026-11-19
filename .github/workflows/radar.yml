@@ -54,6 +54,21 @@ jobs:
           fi
           tail -c 6000 "$RUNNER_TEMP/radar.log" > radar_data/last_run.txt   # 마지막 실행 출력(비공개 저장소에만)
 
+      - name: Sync draft photos to public img/ (붙여넣기용 공개 주소)
+        run: |
+          git clone -q --depth 1 "https://x-access-token:${{ secrets.PRIVATE_REPO_TOKEN }}@github.com/KungPPu/dy-rader.git" pub
+          n=0
+          for f in src/drafts/img/*.jpg; do
+            [ -e "$f" ] || continue
+            b=$(basename "$f")
+            [ -e "pub/img/$b" ] && continue
+            mkdir -p pub/img && cp "$f" "pub/img/$b" && n=$((n+1))
+          done
+          echo "new photos: $n"
+          [ "$n" -eq 0 ] && exit 0
+          cd pub && git config user.name "issue-radar" && git config user.email "noreply@github.com"
+          git add img && git commit -qm "img: 초안 사진 $n장" && for k in 1 2 3; do git pull -q --rebase && git push -q && exit 0; sleep 5; done
+
       - name: Save state to private repo
         working-directory: src
         run: |
