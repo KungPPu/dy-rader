@@ -9,6 +9,10 @@ on:
         description: "시험 알림"
         type: boolean
         default: false
+      game:
+        description: "게임랩 글감 레이더를 지금 시험 알림으로(시각 상관없이)"
+        type: boolean
+        default: false
 
 concurrency:
   group: upcoming
@@ -19,7 +23,7 @@ permissions: {}
 jobs:
   upcoming:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +64,30 @@ jobs:
             echo "upcoming failed — 자세한 내용은 비공개 저장소 radar_data/last_error_upcoming.txt"
             tail -c 4000 "$RUNNER_TEMP/up.log" > radar_data/last_error_upcoming.txt
           fi
+
+      - name: Run game radar (게임랩 글감 — KST 9·17시에만 실제 실행, 출력은 공개 로그에 남기지 않음)
+        working-directory: src/issue_finder
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          NAVER_APIHUB_ID: ${{ secrets.NAVER_APIHUB_ID }}
+          NAVER_APIHUB_SECRET: ${{ secrets.NAVER_APIHUB_SECRET }}
+          NAVER_AD_API_KEY: ${{ secrets.NAVER_AD_API_KEY }}
+          NAVER_AD_SECRET: ${{ secrets.NAVER_AD_SECRET }}
+          NAVER_AD_CUSTOMER_ID: ${{ secrets.NAVER_AD_CUSTOMER_ID }}
+          NAVER_USAGE_FILE: ${{ github.workspace }}/src/issue_finder/radar_data/naver_api_usage_game.json
+          NAVER_SEARCH_DAILY_CAP: "600"
+          NAVER_SEARCH_MONTHLY_CAP: "18000"
+          GAME_MODEL: sonnet
+          GAME_RADAR_HOURS: "9,17"
+        run: |
+          if python game_radar.py ${{ inputs.game && '--test' || '' }} > "$RUNNER_TEMP/game.log" 2>&1; then
+            echo "game radar ok"
+          else
+            echo "game radar failed — 비공개 저장소 radar_data/last_error_game.txt"
+            tail -c 4000 "$RUNNER_TEMP/game.log" > radar_data/last_error_game.txt
+          fi
+          tail -c 4000 "$RUNNER_TEMP/game.log" > radar_data/last_run_game.txt
 
       - name: Save state to private repo
         working-directory: src
