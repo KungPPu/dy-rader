@@ -65,6 +65,14 @@ jobs:
             tail -c 4000 "$RUNNER_TEMP/up.log" > radar_data/last_error_upcoming.txt
           fi
 
+      - name: Daily blog stats (KST 07시 회차에만 비공개 저장소 blog-stats.yml 실행)
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          if [ "$(TZ=Asia/Seoul date +%H)" = "07" ]; then
+            gh api -X POST repos/KungPPu/tistory-blog/actions/workflows/blog-stats.yml/dispatches -f ref=main >/dev/null && echo "blog-stats dispatched" || echo "blog-stats dispatch failed"
+          fi
+
       - name: Run game radar (게임랩 글감 — KST 9·17시에만 실제 실행, 출력은 공개 로그에 남기지 않음)
         working-directory: src/issue_finder
         env:
