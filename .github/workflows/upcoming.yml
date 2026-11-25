@@ -97,6 +97,10 @@ jobs:
           fi
           tail -c 4000 "$RUNNER_TEMP/game.log" > radar_data/last_run_game.txt
 
+      - name: Due game tasks (예약된 게임랩 작업 — game-blog/tasks.json, 시각이 지난 것을 고름)
+        working-directory: src/issue_finder
+        run: python game_tasks.py || echo "game tasks check failed"
+
       - name: Save state to private repo
         working-directory: src
         run: |
@@ -107,3 +111,14 @@ jobs:
           git commit -m "upcoming: state $(date -u +%Y-%m-%dT%H:%MZ)" -q
           for n in 1 2 3 4; do git pull --rebase -q && git push -q && exit 0; sleep 7; done
           exit 1
+
+      - name: Run queued game tasks (저장한 뒤 issue-draft 실행 → 상태 다시 저장)
+        working-directory: src
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          cd issue_finder && python game_tasks.py --send && cd ..
+          git add issue_finder/radar_data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "upcoming: game tasks sent" -q
+          for n in 1 2 3 4; do git pull --rebase -q && git push -q && exit 0; sleep 7; done
