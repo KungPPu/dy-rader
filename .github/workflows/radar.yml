@@ -54,39 +54,10 @@ jobs:
           fi
           tail -c 6000 "$RUNNER_TEMP/radar.log" > radar_data/last_run.txt   # 마지막 실행 출력(비공개 저장소에만)
 
-      - name: Sync draft photos to public img/ (붙여넣기용 공개 주소)
-        run: |
-          git clone -q --depth 1 "https://x-access-token:${{ secrets.PRIVATE_REPO_TOKEN }}@github.com/KungPPu/dy-rader.git" pub
-          n=0; : > "$RUNNER_TEMP/changed.txt"
-          for f in src/drafts/img/*.jpg; do
-            [ -e "$f" ] || continue
-            b=$(basename "$f")
-            if [ -e "pub/img/$b" ]; then
-              cmp -s "$f" "pub/img/$b" && continue
-              echo "$b" >> "$RUNNER_TEMP/changed.txt"      # 같은 이름으로 다시 만든 사진(대표 썸네일 등) → CDN 캐시 비우기
-            fi
-            mkdir -p pub/img && cp "$f" "pub/img/$b" && n=$((n+1))
-            grep -qx "$b" "$RUNNER_TEMP/changed.txt" || echo "$b" >> "$RUNNER_TEMP/changed.txt"   # 새 사진도 캐시 비우기(같은 이름을 지웠다 다시 올린 경우)
-          done
-          # 게임랩 초안 사진(game_draft.py → game-blog/web_img/) → img/game/ (2026-11-22)
-          for f in src/game-blog/web_img/*.jpg; do
-            [ -e "$f" ] || continue
-            b=$(basename "$f")
-            if [ -e "pub/img/game/$b" ]; then
-              cmp -s "$f" "pub/img/game/$b" && continue
-            fi
-            mkdir -p pub/img/game && cp "$f" "pub/img/game/$b" && n=$((n+1))
-            echo "game/$b" >> "$RUNNER_TEMP/changed.txt"
-          done
-          echo "new/changed photos: $n"
-          [ "$n" -eq 0 ] && exit 0
-          cd pub && git config user.name "issue-radar" && git config user.email "noreply@github.com"
-          git add img && git commit -qm "img: 초안 사진 $n장"
-          for k in 1 2 3; do git pull -q --rebase && git push -q && break; sleep 5; done
-          while read -r b; do
-            u=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$b")
-            curl -s -o /dev/null "https://purge.jsdelivr.net/gh/KungPPu/dy-rader@main/img/$u" || true
-          done < "$RUNNER_TEMP/changed.txt"
+      - name: Sync draft photos to public img/ (붙여넣기용 공개 주소 → 열리는지 확인 → 관리 사이트 다시 만들기)
+        env:
+          TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: bash src/public-radar/sync_img.sh
 
       - name: Save state to private repo
         working-directory: src
