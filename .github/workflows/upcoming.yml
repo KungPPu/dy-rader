@@ -73,6 +73,14 @@ jobs:
             gh api -X POST repos/KungPPu/tistory-blog/actions/workflows/blog-stats.yml/dispatches -f ref=main >/dev/null && echo "blog-stats dispatched" || echo "blog-stats dispatch failed"
           fi
 
+      - name: Stream signal (방송 신호 — 치지직·유튜브 게임 시청 기록, 키가 없으면 건너뜀. 공개 로그엔 숫자만)
+        working-directory: src/issue_finder
+        env:
+          CHZZK_CLIENT_ID: ${{ secrets.CHZZK_CLIENT_ID }}
+          CHZZK_CLIENT_SECRET: ${{ secrets.CHZZK_CLIENT_SECRET }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python stream_signal.py snap 2>&1 | tail -c 300 || echo "stream signal failed"
+
       - name: Run game radar (게임랩 글감 — KST 9·17시에만 실제 실행, 출력은 공개 로그에 남기지 않음)
         working-directory: src/issue_finder
         env:
